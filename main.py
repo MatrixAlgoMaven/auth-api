@@ -3,6 +3,7 @@ import httpx
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -90,20 +91,19 @@ def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
-def get_current_user(authorization: str | None = Header(default=None)):
-    if not authorization or not authorization.startswith("Bearer "):
+security = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+):
+    if credentials is None:
         raise HTTPException(
             status_code=401,
             detail="Access token required"
         )
 
-    token = authorization.split(" ", 1)[1]
-
-    if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="Access token required"
-        )
+    token = credentials.credentials
 
     try:
         response = supabase.auth.get_user(token)

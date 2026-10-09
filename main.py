@@ -1,7 +1,8 @@
 import os
+import httpx
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -89,41 +90,80 @@ def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
-@app.get("/protected/profile")
-def protected_profile(authorization: str | None = Header(default=None)):
+def get_current_user(authorization: str | None = Header(default=None)):
     if not authorization or not authorization.startswith("Bearer "):
-        return JSONResponse(
+        raise HTTPException(
             status_code=401,
-            content={"error": "Access token required"}
+            detail="Access token required"
         )
 
     token = authorization.split(" ", 1)[1]
 
     if not token:
-        return JSONResponse(
+        raise HTTPException(
             status_code=401,
-            content={"error": "Access token required"}
+            detail="Access token required"
         )
 
     try:
         response = supabase.auth.get_user(token)
 
         if not response.user:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=401,
-                content={"error": "Invalid or expired token"}
+                detail="Invalid or expired token"
             )
 
-        user = response.user
+        return response.user
 
-        return {
-            "id": user.id,
-            "email": user.email,
-            "created_at": user.created_at
-        }
-
+    except HTTPException:
+        raise
     except Exception:
-        return JSONResponse(
+        raise HTTPException(
             status_code=401,
-            content={"error": "Invalid or expired token"}
+            detail="Invalid or expired token"
         )
+
+@app.get("/protected/profile")
+def protected_profile(user = Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "email": user.email,
+        "created_at": user.created_at
+    }
+
+@app.post("/auth/logout", status_code=204)
+def logout(user=Depends(get_current_user), authorization: str | None = Header(default=None)):
+    token = authorization.split(" ", 1)[1]
+
+    try:
+        response = httpx.post(
+            f"{SUPABASE_URL}/auth/v1/logout",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=10.0,
+        )
+
+        if response.status_code not in (200, 204):
+            raise HTTPException(
+                status_code=502,
+                detail="Supabase logout failed",
+            )
+
+        return None
+
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach Supabase logout service",
+        )
+
+@app.get("/protected/dashboard")
+def protected_dashboard(user=Depends(get_current_user)):
+    return {
+        "message": "Welcome to your dashboard",
+        "user_id": user.id,
+        "email": user.email
+    }

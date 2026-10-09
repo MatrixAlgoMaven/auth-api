@@ -102,3 +102,9 @@ In Swagger UI:
 ## License
 
 No license has been specified yet.
+
+
+## Swagger UI
+
+![Swagger UI showing the Auth API endpoints and Bearer authentication](swagger.png)
+

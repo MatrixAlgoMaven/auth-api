@@ -33,11 +33,10 @@ A REST API built with **FastAPI** and **Supabase Auth** that supports user signu
 ### 1. Clone the repository
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/MatrixAlgoMaven/auth-api.git
 cd auth-api
 ```
 
-Replace `YOUR_GITHUB_REPOSITORY_URL` with your repository URL.
 
 ### 2. Create and activate a virtual environment
 
